@@ -1,0 +1,29 @@
+#main-page{
+    height: 100%;
+    padding-bottom: 30px; 
+    box-sizing: border-box;
+}
+#tool-bar{
+    background-color: aquamarine;
+    position: fixed;
+    width: 100%;
+    height: 60px;
+    bottom: 0;
+}
+#set-tool-bar-btn{
+    position: fixed;
+    height: 30px;
+    bottom: 0;
+    right: 0;
+}
+#paint-board{
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background-color: antiquewhite;
+}
+.editor-canvas{
+    width: 100%;
+    height: 100%;
+    display: block;
+}
