@@ -9,7 +9,7 @@ export default function SmoothBoard() {
   const wsRef = useRef(null);
 
   const [isDrawing, setIsDrawing] = useState(false);
-  const [brushSize, setBrushSize] = useState(18); // 笔迹粗细状态
+  const [brushSize, setBrushSize] = useState(7); // 笔迹粗细状态
   const [isRotated, setIsRotated] = useState(false); // 强制横屏状态
 
   /* ===============================

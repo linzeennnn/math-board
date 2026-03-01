@@ -1,149 +1,214 @@
-import React,{ useRef, useEffect, useState } from "react";
-import html2canvas from 'html2canvas';
+import React, { useRef, useEffect } from "react";
+import html2canvas from "html2canvas";
 import { createWS, getWSUrl } from "../../util/ws";
 import { getStroke } from "perfect-freehand";
+
 export default function MainBoard() {
   const editorRef = useRef(null);
-  const wsRef = useRef(null);
+
+  /* -----------------------------
+   WebSocket 初始化
+  ----------------------------- */
   useEffect(() => {
-  const ws = createWS(getWSUrl("/ws?role=main"));
+    const ws = createWS(getWSUrl("/ws?role=main"));
 
- ws.onMessage(async e => {
-  try {
-    const jsonData = JSON.parse(e.data);
+    ws.onMessage(async e => {
+      try {
+        const jsonData = JSON.parse(e.data);
 
-    const imageUrl = await renderJsonToImage(jsonData);
+        const imageUrl = await renderJsonToImage(jsonData);
+        if (!imageUrl) return;
 
-    if (!imageUrl) return;
+        insertImageAtCursor(imageUrl);
 
-    moveCursorToEnd(editorRef.current);
+      } catch (err) {
+        console.error(err);
+      }
+    });
 
-    const imgHtml = `<img 
-      src="${imageUrl}" 
-      style="
-            height:150px;
-             width:auto;
-             vertical-align:bottom;
-             margin:0 4px;
-             display:inline-block;" />`;
+    return () => ws.close();
+  }, []);
 
-    document.execCommand("insertHTML", false, imgHtml);
+  /* -----------------------------
+   渲染涂鸦 JSON → 图片
+  ----------------------------- */
+  const renderJsonToImage = async (jsonData) => {
+  if (!jsonData?.strokes?.length) return null;
 
-    moveCursorToEnd(editorRef.current);
+  const padding = 24;
 
-  } catch (err) {
-    console.error(err);
-  }
-});
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
 
-  wsRef.current = ws;
-
-  return () => ws.close();
-}, []);
-const renderJsonToImage = async (jsonData) => {
-  const width = editorRef.current.clientWidth;
-  const height = 500;
-
-  // 创建离屏 canvas（性能最佳）
-  const canvas = document.createElement("canvas");
-  canvas.width = width * 2;
-  canvas.height = height * 2;
-
-  const ctx = canvas.getContext("2d");
-  ctx.scale(2,2);
-
-  if (!jsonData?.strokes) return null;
-
-  jsonData.strokes.forEach(stroke => {
-    const polygon = getStroke(stroke.p, {
-      size: (stroke.w || 4)*1.8,
-      
+  /* -----------------------------
+   Step1. 计算真实 bounding box
+  ----------------------------- */
+  const polygons = jsonData.strokes.map(stroke => {
+    return getStroke(stroke.p, {
+      size: (stroke.w || 4) * 1.8,
       thinning: 0.5,
       smoothing: 0.5,
       streamline: 0.5
     });
+  });
 
+  polygons.forEach(poly => {
+    poly.forEach(([x, y]) => {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    });
+  });
+
+  if (!isFinite(minX)) return null;
+
+  const width = maxX - minX + padding * 2;
+  const height = maxY - minY + padding * 2;
+
+  /* -----------------------------
+   Step2. 创建裁剪 canvas
+  ----------------------------- */
+  const canvas = document.createElement("canvas");
+
+  canvas.width = width * 2;
+  canvas.height = height * 2;
+
+  const ctx = canvas.getContext("2d");
+  ctx.scale(2, 2);
+
+  /* ⭐ 核心平移：把涂鸦移到左上角 */
+  ctx.translate(-minX + padding, -minY + padding);
+
+  polygons.forEach((polygon, index) => {
     if (!polygon.length) return;
+
+    const stroke = jsonData.strokes[index];
 
     ctx.beginPath();
     ctx.moveTo(polygon[0][0], polygon[0][1]);
 
-    for(let i=1;i<polygon.length;i++){
+    for (let i = 1; i < polygon.length; i++) {
       ctx.lineTo(polygon[i][0], polygon[i][1]);
     }
 
     ctx.closePath();
 
-    ctx.fillStyle = stroke.c || "#333";
+    ctx.fillStyle = stroke?.c || "#333";
     ctx.fill();
   });
 
   return canvas.toDataURL("image/png");
 };
-  // 强制将光标移动到编辑器末尾
-  const moveCursorToEnd = (el) => {
-    el.focus();
-    if (typeof window.getSelection != "undefined" && typeof document.createRange != "undefined") {
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      range.collapse(false); // false 表示折叠到末尾
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-  };
 
+  /* -----------------------------
+   光标插入图片（安全版）
+  ----------------------------- */
+  const insertImageAtCursor = (url) => {
+  const el = editorRef.current;
+  if (!el) return;
+
+  el.focus();
+
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  const range = document.createRange();
+
+  /* ⭐ 核心：定位到编辑器末尾 */
+  range.selectNodeContents(el);
+  range.collapse(false);
+
+  const img = document.createElement("img");
+
+  img.src = url;
+  img.style.height = "80px";
+  img.style.width = "auto";
+  img.style.verticalAlign = "bottom";
+  img.style.margin = "0 4px";
+  img.style.display = "inline-block";
+
+  range.insertNode(img);
+
+  /* ⭐ 插入后把光标移动到图片后面 */
+  range.setStartAfter(img);
+  range.setEndAfter(img);
+
+  selection.removeAllRanges();
+  selection.addRange(range);
+};
+  /* -----------------------------
+   图片上传插入
+  ----------------------------- */
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const imageUrl = event.target.result;
-        
-        // 1. 先将光标移到最后
-        moveCursorToEnd(editorRef.current);
+    if (!file) return;
 
-        // 2. 插入图片 HTML
-        // vertical-align: bottom 确保图片底部与文字对齐
-        const imgHtml = `<img src="${imageUrl}" style="height: 1.2em; width: auto; vertical-align: bottom; margin: 0 4px; display: inline-block;" />`;
-        document.execCommand('insertHTML', false, imgHtml);
+    const reader = new FileReader();
 
-        // 3. 再次移到最后，方便继续输入文字
-        moveCursorToEnd(editorRef.current);
-      };
-      reader.readAsDataURL(file);
-    }
-    e.target.value = ''; // 清空 input
+    reader.onload = (event) => {
+      insertImageAtCursor(event.target.result);
+    };
+
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
+  /* -----------------------------
+   导出整页为图片
+  ----------------------------- */
   const exportAsImage = async () => {
-    if (editorRef.current) {
-      const canvas = await html2canvas(editorRef.current, {
-        useCORS: true,
-        scale: 2,
-        backgroundColor: 'transparent'
-      });
-      const link = document.createElement('a');
-      link.download = 'export.png';
-      link.href = canvas.toDataURL();
-      link.click();
-    }
+    if (!editorRef.current) return;
+
+    const canvas = await html2canvas(editorRef.current, {
+      useCORS: true,
+      scale: 2,
+      backgroundColor: "transparent"
+    });
+
+    const link = document.createElement("a");
+    link.download = "export.png";
+    link.href = canvas.toDataURL();
+    link.click();
   };
 
-    return (
-        <div id="paint-board" style={{ width: '100%', height: '500px', position: 'relative' }}>
-       <div style={{ marginBottom: '15px' }}>
-        <button 
-          onClick={() => document.getElementById('file-input').click()}
-          style={{ padding: '10px 20px', cursor: 'pointer', background: '#f0f0f0', border: '1px solid #ccc' }}
+  /* -----------------------------
+   Render
+  ----------------------------- */
+  return (
+    <div style={{ width: "100%", height: "500px", position: "relative" }}>
+      <div style={{ marginBottom: 15 }}>
+        <button
+          onClick={() => document.getElementById("file-input").click()}
+          style={{
+            padding: "10px 20px",
+            cursor: "pointer",
+            background: "#f0f0f0",
+            border: "1px solid #ccc"
+          }}
         >
           插入图片到末尾
         </button>
-        <input id="file-input" type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
-        
-        <button 
+
+        <input
+          id="file-input"
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          style={{ display: "none" }}
+        />
+
+        <button
           onClick={exportAsImage}
-          style={{ marginLeft: '10px', padding: '10px 20px', cursor: 'pointer', background: '#000', color: '#fff', border: 'none' }}
+          style={{
+            marginLeft: 10,
+            padding: "10px 20px",
+            background: "#000",
+            color: "#fff",
+            border: "none"
+          }}
         >
           保存为图片
         </button>
@@ -154,18 +219,17 @@ const renderJsonToImage = async (jsonData) => {
         contentEditable
         suppressContentEditableWarning
         style={{
-          border: '1px solid #eee',
-          padding: '25px',
-          minHeight: '150px',
-          lineHeight: '1.8',    // 控制行高
-          fontSize: '30px',     // 文字大小
-          outline: 'none',
-          whiteSpace: 'pre-wrap', // 保留空格和换行
-          wordBreak: 'break-all'
+          border: "1px solid #eee",
+          padding: "25px",
+          minHeight: "150px",
+          lineHeight: 1.8,
+          fontSize: "30px",
+          outline: "none",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-all"
         }}
       >
-        在这里输入你的文字内容...
       </div>
-        </div>
-    );
+    </div>
+  );
 }
