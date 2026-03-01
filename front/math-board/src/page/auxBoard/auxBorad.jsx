@@ -3,58 +3,73 @@ import { getStroke } from "perfect-freehand";
 import { createWS, getWSUrl } from "../../util/ws";
 
 export default function SmoothBoard() {
-
   const canvasRef = useRef(null);
   const pointsRef = useRef([]);
   const strokesRef = useRef([]);
   const wsRef = useRef(null);
 
   const [isDrawing, setIsDrawing] = useState(false);
+  const [brushSize, setBrushSize] = useState(18); // 笔迹粗细状态
+  const [isRotated, setIsRotated] = useState(false); // 强制横屏状态
 
   /* ===============================
-   WebSocket
-   =============================== */
-
+     WebSocket
+  =============================== */
   useEffect(() => {
     wsRef.current = createWS(getWSUrl("/ws?role=aux"));
   }, []);
 
   /* ===============================
-   Canvas Resize
-   =============================== */
-
+     Canvas Resize (适配旋转)
+  =============================== */
   useEffect(() => {
     const canvas = canvasRef.current;
 
     const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      // 如果处于强制横屏模式，Canvas 的画布宽应等于视口高，高应等于视口宽
+      if (isRotated) {
+        canvas.width = window.innerHeight;
+        canvas.height = window.innerWidth;
+      } else {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
       redrawAll();
     };
 
     resize();
     window.addEventListener("resize", resize);
-
     return () => window.removeEventListener("resize", resize);
-  }, []);
+  }, [isRotated]); // ⭐ 当旋转状态改变时重新触发 resize
 
   /* ===============================
-   坐标转换
-   =============================== */
-
+     坐标转换 (核心修正逻辑)
+  =============================== */
   const getPoint = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    
+    // 获取原始触点相对于视口的坐标
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
-    const x = e.clientX || (e.touches && e.touches[0].clientX);
-    const y = e.clientY || (e.touches && e.touches[0].clientY);
-
-    return [x - rect.left, y - rect.top];
+    if (!isRotated) {
+      // 正常模式：标准减法
+      return [clientX - rect.left, clientY - rect.top];
+    } else {
+      /* 强制横屏模式坐标映射：
+         原本的 clientY 变成了画布的 X 轴偏移
+         原本的 clientX 变成了画布的 Y 轴反向偏移
+      */
+      const x = clientY - rect.top;
+      const y = rect.right - clientX; 
+      return [x, y];
+    }
   };
 
   /* ===============================
-   Pointer Event
-   =============================== */
-
+     Pointer Event
+  =============================== */
   const handlePointerDown = (e) => {
     setIsDrawing(true);
     pointsRef.current = [getPoint(e)];
@@ -64,7 +79,6 @@ export default function SmoothBoard() {
     if (!isDrawing) return;
 
     const point = getPoint(e);
-
     pointsRef.current.push(point);
 
     previewStroke(pointsRef.current);
@@ -81,31 +95,28 @@ export default function SmoothBoard() {
       strokesRef.current.push({
         p: strokeData,
         c: "#333",
-        w: 8
+        w: brushSize   // ⭐ 保存当前粗细
       });
     }
 
     pointsRef.current = [];
-
     redrawAll();
   };
 
   /* ===============================
-   Stroke Rendering
-   =============================== */
-
+     Stroke Rendering
+  =============================== */
   const previewStroke = (points) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     redrawAll();
 
     if (points.length < 2) return;
 
     const stroke = getStroke(points, {
-      size: 18,
+      size: brushSize,
       thinning: 0,
       smoothing: 0.8,
       streamline: 0.8
@@ -125,42 +136,38 @@ export default function SmoothBoard() {
     }
 
     ctx.closePath();
-
     ctx.fillStyle = "#333";
     ctx.fill();
   };
 
   /* ===============================
-   历史重绘
-   =============================== */
-
+     历史重绘
+  =============================== */
   const redrawAll = () => {
-    const ctx = canvasRef.current.getContext("2d");
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     strokesRef.current.forEach(stroke => {
-
       const polygon = getStroke(stroke.p, {
-        size: 18,
+        size: stroke.w,
         thinning: 0,
         smoothing: 0.8,
         streamline: 0.8
       });
-
       drawPolygon(ctx, polygon);
     });
   };
 
   /* ===============================
-   点压缩
-   =============================== */
-
+     点压缩
+  =============================== */
   const simplifyPoints = (points) => {
-
     const MIN_DIST = 4;
     const result = [];
 
     for (let i = 0; i < points.length; i++) {
-
       if (i === 0) {
         result.push(points[i]);
         continue;
@@ -181,92 +188,120 @@ export default function SmoothBoard() {
   };
 
   /* ===============================
-   Bounding Box
-   =============================== */
-
-  const getStrokesBoundingBox = () => {
-
-    if (!strokesRef.current.length) return null;
-
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    strokesRef.current.forEach(stroke => {
-      stroke.p.forEach(([x, y]) => {
-
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-
-      });
-    });
-
-    return { minX, minY, maxX, maxY };
-  };
-
-  /* ===============================
-   Export JSON
-   =============================== */
-
-  const exportJSON = async () => {
-
+     导出
+  =============================== */
+const exportJSON = async () => {
     if (!strokesRef.current.length) return;
 
-    const json = JSON.stringify({
-      strokes: strokesRef.current
+    // 默认宽高
+    let finalWidth = canvasRef.current.width;
+    let finalHeight = canvasRef.current.height;
+    const processedStrokes = strokesRef.current.map(stroke => {
+      return {
+        ...stroke,
+        // 这里的 p 已经是经过 getPoint 转换后的逻辑坐标了
+        p: stroke.p 
+      };
     });
 
-    console.log("压缩后大小:", (json.length / 1024).toFixed(2), "KB");
+    const json = JSON.stringify({
+      width: finalWidth,   // 发送当前真实的画布宽度
+      height: finalHeight, // 发送当前真实的画布高度
+      isRotated: isRotated,
+      strokes: processedStrokes
+    });
+console.log();
 
     wsRef.current?.send(json);
   };
 
-  /* ===============================
-   Clear
-   =============================== */
-
   const clear = () => {
     strokesRef.current = [];
-
-    const ctx = canvasRef.current.getContext("2d");
-
-    ctx.clearRect(
-      0,
-      0,
-      canvasRef.current.width,
-      canvasRef.current.height
-    );
+    redrawAll();
   };
 
   /* ===============================
-   Render
-   =============================== */
-
+     Render
+  =============================== */
   return (
-    <div style={{ width: "100vw", height: "100vh" }}>
-      <canvas
-        ref={canvasRef}
-        onMouseDown={handlePointerDown}
-        onMouseMove={handlePointerMove}
-        onMouseUp={handlePointerUp}
-        onMouseLeave={handlePointerUp}
-        onTouchStart={handlePointerDown}
-        onTouchMove={handlePointerMove}
-        onTouchEnd={handlePointerUp}
-        style={{
-          display: "block",
-          touchAction: "none",
-          background: "#f8f9fa"
-        }}
-      />
+    <div style={{ 
+      width: "100vw", 
+      height: "100vh", 
+      overflow: "hidden", 
+      position: "relative",
+      background: "#f8f9fa" 
+    }}>
 
-      <div style={{ position: "fixed", bottom: 20, right: 20 }}>
-        <button onClick={exportJSON}>导出 JSON</button>
-        <button onClick={clear}>清空</button>
+      {/* 旋转容器：当 isRotated 为真时，
+          将内部容器顺时针旋转 90 度，并修正宽高。
+      */}
+      <div style={{
+        width: isRotated ? "100vh" : "100vw",
+        height: isRotated ? "100vw" : "100vh",
+        position: "absolute",
+        top: isRotated ? "50%" : "0",
+        left: isRotated ? "50%" : "0",
+        transform: isRotated ? "translate(-50%, -50%) rotate(90deg)" : "none",
+        transformOrigin: "center center",
+        transition: "transform 0.3s ease"
+      }}>
+        <canvas
+          ref={canvasRef}
+          onMouseDown={handlePointerDown}
+          onMouseMove={handlePointerMove}
+          onMouseUp={handlePointerUp}
+          onMouseLeave={handlePointerUp}
+          onTouchStart={handlePointerDown}
+          onTouchMove={handlePointerMove}
+          onTouchEnd={handlePointerUp}
+          style={{
+            display: "block",
+            touchAction: "none",
+            width: "100%",
+            height: "100%",
+            background: "#fff"
+          }}
+        />
+        {/* 控制面板放在旋转容器内，这样它也会跟着旋转到横向的底部。
+            pointerEvents: "auto" 确保按钮在 touchAction: none 的画布上方仍可点击。
+        */}
+        <div style={{
+          position: "absolute",
+          bottom: 20,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "rgba(255,255,255,0.9)",
+          padding: "10px 20px",
+          borderRadius: 10,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          display: "flex",
+          alignItems: "center",
+          gap: 15,
+          zIndex: 10
+        }}>
+          <button 
+            onClick={() => setIsRotated(!isRotated)}
+            style={{ fontWeight: "bold", color: isRotated ? "#007bff" : "#333" }}
+          >
+            {isRotated ? "返回竖屏" : "切换横屏"}
+          </button>
+          
+          <div style={{ height: "20px", width: "1px", background: "#ddd" }} />
+
+          <span>粗细:</span>
+          <input
+            type="range"
+            min="4"
+            max="50"
+            value={brushSize}
+            onChange={(e) => setBrushSize(Number(e.target.value))}
+          />
+          <span>{brushSize}</span>
+          <button onClick={exportJSON}>导出</button>
+          <button onClick={clear}>清空</button>
+        </div>
       </div>
+
     </div>
   );
 }
