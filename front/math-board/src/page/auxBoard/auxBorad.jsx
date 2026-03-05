@@ -7,7 +7,7 @@ export default function SmoothBoard() {
   const pointsRef = useRef([]);
   const strokesRef = useRef([]);
   const wsRef = useRef(null);
-
+const [showToolbar, setShowToolbar] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
   const [brushSize, setBrushSize] = useState(7); // 笔迹粗细状态
   const [isRotated, setIsRotated] = useState(false); // 强制横屏状态
@@ -224,47 +224,64 @@ console.log();
      Render
   =============================== */
   return (
-    <div style={{ 
-      width: "100vw", 
-      height: "100vh", 
-      overflow: "hidden", 
-      position: "relative",
-      background: "#f8f9fa" 
-    }}>
+  <div style={{ 
+    width: "100vw", 
+    height: "100vh", 
+    overflow: "hidden", 
+    position: "relative",
+    background: "#f8f9fa" 
+  }}>
 
-      {/* 旋转容器：当 isRotated 为真时，
-          将内部容器顺时针旋转 90 度，并修正宽高。
-      */}
-      <div style={{
-        width: isRotated ? "100vh" : "100vw",
-        height: isRotated ? "100vw" : "100vh",
+    {/* 右上角 显示/隐藏 工具栏按钮 */}
+    <button
+      onClick={() => setShowToolbar(!showToolbar)}
+      style={{
         position: "absolute",
-        top: isRotated ? "50%" : "0",
-        left: isRotated ? "50%" : "0",
-        transform: isRotated ? "translate(-50%, -50%) rotate(90deg)" : "none",
-        transformOrigin: "center center",
-        transition: "transform 0.3s ease"
-      }}>
-        <canvas
-          ref={canvasRef}
-          onMouseDown={handlePointerDown}
-          onMouseMove={handlePointerMove}
-          onMouseUp={handlePointerUp}
-          onMouseLeave={handlePointerUp}
-          onTouchStart={handlePointerDown}
-          onTouchMove={handlePointerMove}
-          onTouchEnd={handlePointerUp}
-          style={{
-            display: "block",
-            touchAction: "none",
-            width: "100%",
-            height: "100%",
-            background: "#fff"
-          }}
-        />
-        {/* 控制面板放在旋转容器内，这样它也会跟着旋转到横向的底部。
-            pointerEvents: "auto" 确保按钮在 touchAction: none 的画布上方仍可点击。
-        */}
+        top: 20,
+        right: 20,
+        zIndex: 20,
+        padding: "8px 12px",
+        borderRadius: 8,
+        border: "none",
+        background: "#007bff",
+        color: "#fff",
+        cursor: "pointer"
+      }}
+    >
+      {showToolbar ? "隐藏工具栏" : "显示工具栏"}
+    </button>
+
+    {/* 旋转容器 */}
+    <div style={{
+      width: isRotated ? "100vh" : "100vw",
+      height: isRotated ? "100vw" : "100vh",
+      position: "absolute",
+      top: isRotated ? "50%" : "0",
+      left: isRotated ? "50%" : "0",
+      transform: isRotated ? "translate(-50%, -50%) rotate(90deg)" : "none",
+      transformOrigin: "center center",
+      transition: "transform 0.3s ease"
+    }}>
+      <canvas
+        ref={canvasRef}
+        onMouseDown={handlePointerDown}
+        onMouseMove={handlePointerMove}
+        onMouseUp={handlePointerUp}
+        onMouseLeave={handlePointerUp}
+        onTouchStart={handlePointerDown}
+        onTouchMove={handlePointerMove}
+        onTouchEnd={handlePointerUp}
+        style={{
+          display: "block",
+          touchAction: "none",
+          width: "100%",
+          height: "100%",
+          background: "#fff"
+        }}
+      />
+
+      {/* 底部工具栏 */}
+      {showToolbar && (
         <div style={{
           position: "absolute",
           bottom: 20,
@@ -297,11 +314,12 @@ console.log();
             onChange={(e) => setBrushSize(Number(e.target.value))}
           />
           <span>{brushSize}</span>
+
           <button onClick={exportJSON}>导出</button>
           <button onClick={clear}>清空</button>
         </div>
-      </div>
-
+      )}
     </div>
-  );
+  </div>
+);
 }

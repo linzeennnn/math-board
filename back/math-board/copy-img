@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <image_file>"
+    exit 1
+fi
+
+IMAGE_FILE="$1"
+
+if [[ ! -f "$IMAGE_FILE" ]]; then
+    echo "Error: file not found -> $IMAGE_FILE"
+    exit 1
+fi
+
+copy_mac() {
+    cat "$IMAGE_FILE" | pbcopy
+}
+
+copy_linux() {
+    # Wayland first
+    if command -v wl-copy >/dev/null 2>&1; then
+        wl-copy < "$IMAGE_FILE"
+        return
+    fi
+
+    # X11 fallback
+    if command -v xclip >/dev/null 2>&1; then
+        xclip -selection clipboard -t "$(file -b --mime-type "$IMAGE_FILE")" -i "$IMAGE_FILE"
+        return
+    fi
+
+    echo "Error: install wl-clipboard or xclip"
+    exit 1
+}
+
+OS_TYPE="$(uname)"
+
+case "$OS_TYPE" in
+    Darwin)
+        if ! command -v pbcopy >/dev/null 2>&1; then
+            echo "Error: pbcopy not found"
+            exit 1
+        fi
+        copy_mac
+        ;;
+
+    Linux)
+        copy_linux
+        ;;
+
+    *)
+        echo "Unsupported OS: $OS_TYPE"
+        exit 1
+        ;;
+esac
+
+echo "Image copied to clipboard."
