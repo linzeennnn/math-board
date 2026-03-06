@@ -1,9 +1,11 @@
 import React, { useRef, useEffect, useState } from "react";
 import { getStroke } from "perfect-freehand";
 import { createWS, getWSUrl } from "../../util/ws";
+import Upload from "./upload";
 
 export default function SmoothBoard() {
   const canvasRef = useRef(null);
+  const [notifyText, setNotifyText] = useState("");
   const pointsRef = useRef([]);
   const strokesRef = useRef([]);
   const wsRef = useRef(null);
@@ -95,7 +97,7 @@ const [showToolbar, setShowToolbar] = useState(true);
       strokesRef.current.push({
         p: strokeData,
         c: "#333",
-        w: brushSize   // ⭐ 保存当前粗细
+        w: brushSize   // 保存当前粗细
       });
     }
 
@@ -315,11 +317,31 @@ console.log();
           />
           <span>{brushSize}</span>
 
-          <button onClick={exportJSON}>导出</button>
+          <button onClick={exportJSON}>发送</button>
           <button onClick={clear}>清空</button>
+          
         </div>
       )}
     </div>
+    <Upload
+          apiUrl="/api/clipboard" 
+            onUploadSuccess={(data) => {
+              setNotifyText("上传成功");
+              setTimeout(() => setNotifyText(""), 1000);
+            }}
+          />
+          <span 
+      style={{
+        position: "absolute",
+        top: 20,
+        left: "50%",
+        zIndex: 20,
+        padding: "8px 12px",
+        borderRadius: 8,
+        border: "none",
+        color: "black",
+      }}
+          >{notifyText}</span>
   </div>
 );
 }

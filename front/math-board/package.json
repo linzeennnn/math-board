@@ -13,6 +13,7 @@
     "html2canvas": "^1.4.1",
     "perfect-freehand": "^1.2.3",
     "react": "^19.2.0",
+    "react-cropper": "^2.3.3",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
     "zustand": "^5.0.11"
