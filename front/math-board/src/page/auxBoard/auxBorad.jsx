@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from "react";
 import { getStroke } from "perfect-freehand";
 import { createWS, getWSUrl } from "../../util/ws";
 import Upload from "./upload";
-
+import '@/css/aux.css'
 export default function SmoothBoard() {
   const canvasRef = useRef(null);
   const [notifyText, setNotifyText] = useState("");
@@ -226,44 +226,29 @@ console.log();
      Render
   =============================== */
   return (
-  <div style={{ 
-    width: "100vw", 
-    height: "100vh", 
-    overflow: "hidden", 
-    position: "relative",
-    background: "#f8f9fa" 
-  }}>
+  <div className="board-container">
 
-    {/* 右上角 显示/隐藏 工具栏按钮 */}
+    {/* 工具栏切换按钮 */}
     <button
+      className="toolbar-toggle-btn"
       onClick={() => setShowToolbar(!showToolbar)}
-      style={{
-        position: "absolute",
-        top: 20,
-        right: 20,
-        zIndex: 20,
-        padding: "8px 12px",
-        borderRadius: 8,
-        border: "none",
-        background: "#007bff",
-        color: "#fff",
-        cursor: "pointer"
-      }}
     >
       {showToolbar ? "隐藏工具栏" : "显示工具栏"}
     </button>
 
     {/* 旋转容器 */}
-    <div style={{
-      width: isRotated ? "100vh" : "100vw",
-      height: isRotated ? "100vw" : "100vh",
-      position: "absolute",
-      top: isRotated ? "50%" : "0",
-      left: isRotated ? "50%" : "0",
-      transform: isRotated ? "translate(-50%, -50%) rotate(90deg)" : "none",
-      transformOrigin: "center center",
-      transition: "transform 0.3s ease"
-    }}>
+    <div
+      className="rotate-wrapper"
+      style={{
+        width: isRotated ? "100vh" : "100vw",
+        height: isRotated ? "100vw" : "100vh",
+        top: isRotated ? "50%" : "0",
+        left: isRotated ? "50%" : "0",
+        transform: isRotated
+          ? "translate(-50%, -50%) rotate(90deg)"
+          : "none"
+      }}
+    >
       <canvas
         ref={canvasRef}
         onMouseDown={handlePointerDown}
@@ -273,41 +258,26 @@ console.log();
         onTouchStart={handlePointerDown}
         onTouchMove={handlePointerMove}
         onTouchEnd={handlePointerUp}
-        style={{
-          display: "block",
-          touchAction: "none",
-          width: "100%",
-          height: "100%",
-          background: "#fff"
-        }}
+        className="canvas-full"
       />
 
       {/* 底部工具栏 */}
       {showToolbar && (
-        <div style={{
-          position: "absolute",
-          bottom: 20,
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "rgba(255,255,255,0.9)",
-          padding: "10px 20px",
-          borderRadius: 10,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-          display: "flex",
-          alignItems: "center",
-          gap: 15,
-          zIndex: 10
-        }}>
-          <button 
+        <div className="bottom-toolbar">
+          <button
             onClick={() => setIsRotated(!isRotated)}
-            style={{ fontWeight: "bold", color: isRotated ? "#007bff" : "#333" }}
+            style={{
+              fontWeight: "bold",
+              color: isRotated ? "#007bff" : "#333"
+            }}
           >
             {isRotated ? "返回竖屏" : "切换横屏"}
           </button>
-          
-          <div style={{ height: "20px", width: "1px", background: "#ddd" }} />
+
+          <div className="toolbar-divider" />
 
           <span>粗细:</span>
+
           <input
             type="range"
             min="4"
@@ -315,33 +285,24 @@ console.log();
             value={brushSize}
             onChange={(e) => setBrushSize(Number(e.target.value))}
           />
+
           <span>{brushSize}</span>
 
           <button onClick={exportJSON}>发送</button>
           <button onClick={clear}>清空</button>
-          
         </div>
       )}
     </div>
+
     <Upload
-          apiUrl="/api/clipboard" 
-            onUploadSuccess={(data) => {
-              setNotifyText("上传成功");
-              setTimeout(() => setNotifyText(""), 1000);
-            }}
-          />
-          <span 
-      style={{
-        position: "absolute",
-        top: 20,
-        left: "50%",
-        zIndex: 20,
-        padding: "8px 12px",
-        borderRadius: 8,
-        border: "none",
-        color: "black",
+      apiUrl="/api/clipboard"
+      onUploadSuccess={() => {
+        setNotifyText("上传成功");
+        setTimeout(() => setNotifyText(""), 1000);
       }}
-          >{notifyText}</span>
+    />
+
+    <span className="notify-text">{notifyText}</span>
   </div>
 );
 }

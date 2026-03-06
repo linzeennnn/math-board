@@ -1,0 +1,172 @@
+/* ========================
+   Layout
+======================== */
+
+.board-container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background: #f8f9fa;
+}
+
+/* ========================
+   Toolbar Toggle Button
+======================== */
+
+.toolbar-toggle-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 20;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #007bff;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* ========================
+   Rotate Wrapper
+======================== */
+
+.rotate-wrapper {
+  position: absolute;
+  transform-origin: center center;
+  transition: transform 0.3s ease;
+}
+
+/* 横屏尺寸由 JSX 动态控制 */
+
+/* ========================
+   Canvas
+======================== */
+
+.canvas-full {
+  display: block;
+  touch-action: none;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+}
+
+/* ========================
+   Bottom Toolbar
+======================== */
+
+.bottom-toolbar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  z-index: 10;
+}
+
+.toolbar-divider {
+  height: 20px;
+  width: 1px;
+  background: #ddd;
+}
+
+/* ========================
+   Notify Text
+======================== */
+
+.notify-text {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  z-index: 20;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: black;
+  transform: translateX(-50%);
+}
+
+/* ======================
+   Trigger Button
+====================== */
+
+.upload-trigger-btn {
+  padding: 8px 16px;
+  background: #28a745;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 100;
+  position: fixed;
+}
+
+/* ======================
+   Fullscreen Overlay
+====================== */
+
+.upload-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ======================
+   Header
+====================== */
+
+.upload-header {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: #fff;
+}
+
+/* ======================
+   Cropper Area
+====================== */
+
+.upload-cropper-wrapper {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a1a;
+}
+
+/* ======================
+   Footer
+====================== */
+
+.upload-footer {
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  background: rgba(255, 255, 255, 0.95);
+}
+/* ======================
+   Buttons
+====================== */
+
+.upload-close-x {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
