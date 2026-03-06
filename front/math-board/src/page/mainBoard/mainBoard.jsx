@@ -245,12 +245,12 @@ export default function MainBoard() {
           onClick={() => exportAsImage("求解以上题目")}
         >
           解题
+        </button>
         <button
           className="btn btn-dark"
           onClick={() => exportAsImage("")}
         >
           复制
-        </button>
         </button>
 
         <span>{notifyText}</span>
